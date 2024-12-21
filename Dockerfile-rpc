@@ -1,0 +1,68 @@
+# Multistage docker build, requires docker 17.05
+# Requires >= 12GB RAM to build
+
+# builder stage
+FROM ubuntu:20.04 as builder
+
+RUN set -ex && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends --yes install \
+    automake \
+    autotools-dev \
+    bsdmainutils \
+    build-essential \
+    ca-certificates \
+    ccache \
+    cmake \
+    curl \
+    git \
+    libtool \
+    pkg-config \
+    gperf \
+    g++-aarch64-linux-gnu
+
+WORKDIR /src
+COPY . .
+
+ARG NPROC
+ENV USE_DEVICE_TREZOR=OFF
+RUN set -ex && \
+    rm -rf build && \
+    if [ -z "$NPROC" ] ; \
+    then make -j$(nproc) depends target=aarch64-linux-gnu ; \
+    else make -j$NPROC depends target=aarch64-linux-gnu ; \
+    fi
+
+# runtime stage
+FROM ubuntu:20.04
+
+RUN set -ex && \
+    apt-get update && \
+    apt-get --no-install-recommends --yes install ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt
+    
+COPY --from=builder /src/build/aarch64-linux-gnu/release/bin /usr/local/bin/
+
+EXPOSE 18080 18081 18082 18083 28081 38081
+
+RUN if [ ! -d "/monero/logs" ] ; \
+    then mkdir -p /monero/logs ; \
+    fi
+
+# --no-initial-sync to prevent initial sync before /createAddress is called with the desired number of lookahead addressses
+#   because RPC will only be started after initial-sync is completed (50 mins) and /rescan-blockchain will have to be called after 
+#     creating addresses
+ENTRYPOINT ["monero-wallet-rpc"]
+CMD ["--wallet-file", "/monero/wallets/wallet", \
+    "--password-file", "/monero/wallets/wallet.passwd", \
+    "--daemon-host", "node.community.rino.io", \
+    "--daemon-port=18081", \
+    "--disable-rpc-login", \
+    "--rpc-bind-port", "28081", \
+    "--trusted-daemon", \
+    "--rpc-bind-ip", "0.0.0.0", \
+    "--confirm-external-bind", \
+    "--no-initial-sync", \
+    "--log-file", "/monero/logs/monero-wallet-rpc.wallet.log" \
+    ]
