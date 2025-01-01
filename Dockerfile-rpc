@@ -50,9 +50,11 @@ RUN if [ ! -d "/monero/logs" ] ; \
     then mkdir -p /monero/logs ; \
     fi
 
-# --no-initial-sync to prevent initial sync before /createAddress is called with the desired number of lookahead addressses
+# - ~~--no-initial-sync to prevent initial sync before /createAddress is called with the desired number of lookahead addressses
 #   because RPC will only be started after initial-sync is completed (50 mins) and /rescan-blockchain will have to be called after 
-#     creating addresses
+#     creating addresses~~
+# - use initial sync with lookahead adjusted to 10k
+#   - so create-address doesnt return a used one when walletRPC is catching up with the blockchain
 ENTRYPOINT ["monero-wallet-rpc"]
 CMD ["--wallet-file", "/monero/wallets/wallet", \
     "--password-file", "/monero/wallets/wallet.passwd", \
@@ -63,6 +65,5 @@ CMD ["--wallet-file", "/monero/wallets/wallet", \
     "--trusted-daemon", \
     "--rpc-bind-ip", "0.0.0.0", \
     "--confirm-external-bind", \
-    "--no-initial-sync", \
     "--log-file", "/monero/logs/monero-wallet-rpc.wallet.log" \
     ]
