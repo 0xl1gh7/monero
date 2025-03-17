@@ -26,12 +26,22 @@ COPY . .
 
 ARG NPROC
 ENV USE_DEVICE_TREZOR=OFF
+
+## - x86
 RUN set -ex && \
     rm -rf build && \
     if [ -z "$NPROC" ] ; \
-    then make -j$(nproc) depends target=aarch64-linux-gnu ; \
-    else make -j$NPROC depends target=aarch64-linux-gnu ; \
+    then make -j$(nproc) depends target=x86_64-linux-gnu ; \
+    else make -j$NPROC depends target=x86_64-linux-gnu ; \
     fi
+
+## - arm
+# RUN set -ex && \
+#     rm -rf build && \
+#     if [ -z "$NPROC" ] ; \
+#     then make -j$(nproc) depends target=aarch64-linux-gnu ; \
+#     else make -j$NPROC depends target=aarch64-linux-gnu ; \
+#     fi
 
 # runtime stage
 FROM ubuntu:20.04
@@ -41,8 +51,12 @@ RUN set -ex && \
     apt-get --no-install-recommends --yes install ca-certificates && \
     apt-get clean && \
     rm -rf /var/lib/apt
-    
-COPY --from=builder /src/build/aarch64-linux-gnu/release/bin /usr/local/bin/
+
+## - x86
+COPY --from=builder /src/build/x86_64-linux-gnu/release/bin /usr/local/bin/
+
+## - arm
+# COPY --from=builder /src/build/aarch64-linux-gnu/release/bin /usr/local/bin/
 
 EXPOSE 18080 18081 18082 18083 28081 38081
 
